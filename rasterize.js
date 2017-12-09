@@ -4,7 +4,12 @@ var player ={ height: 3.8 , depth : -6}
 var textureLoader;
 var textures = {};
 var meshes = {};
-meshes.missile = [];
+
+var missile = {};
+missile.fireInterval_default = 100
+missile.fireInterval = missile.fireInterval_default;
+missile.isAlive = false; // frames to make a shoot // changes for different levels
+missile.objects = [];
 
 
 function init(){
@@ -19,10 +24,9 @@ function init(){
 	addBackground();
 	addBuildings();
 	addMissileBlaster();
-	addMissiles();
+	
 	addFloor();
 	setCamera();
-
 	animate();
 	console.log(camera);
 	console.log(renderer.domElement)
@@ -38,24 +42,28 @@ function getRandomMissileTraversal(){
  // since we will be shooting only at z = 0 
 
 //starting location of missile
+// for the current game the X ranges from [-11,11] and y [1,11]
 
-var missileTraversal = {};
-var start = [];
-var random = Math.random() * camera.X_LIMIT * 2 ;
-start[0] = Math.ceil(camera.X_LIMIT - random )
-start[1] = Math.ceil(camera.Y_LIMIT)
-start[2] = 0 // since we will be having Z coordinate set
-missileTraversal.start = start;
+	var missileTraversal = {}; // contains start,end,velocity
+	var start = [];
+	var random = Math.random() * 22
+	start[0] = Math.ceil(11 - random )
+	start[1] = 11
+	start[2] = 0 // since we will be having Z coordinate set
+	missileTraversal.start = new THREE.Vector3( start[0], start[1], start[2] );
 
-var end = [];
+	var end = [];
 
-var random = Math.random() * (camera.X_LIMIT -2) * 2 ; // ensuring the bombs are within resonable X limit for destination
-end[0] = Math.ceil((camera.X_LIMIT-2) - random )
-end[1] = 0 // so that the bombs reach the ground
-end[2] = 0 // so that it is in middle of Z
-missileTraversal.end = end;
-console.log("traversal " ,missileTraversal)
-return missileTraversal;
+	var random = Math.random() * 22 ; // ensuring the bombs are within resonable X limit for destination
+	end[0] = Math.ceil(11 - random )
+	end[1] = 0 // so that the bombs reach the ground
+	end[2] = 0 // so that it is in middle of Z
+	missileTraversal.end =  new THREE.Vector3( end[0], end[1], end[2] );
+	missileTraversal.velocity = new THREE.Vector3(0,0,0).add(missileTraversal.end)
+	missileTraversal.velocity.sub(missileTraversal.start);
+	missileTraversal.velocity = missileTraversal.velocity.divideScalar(100); // the more this value the slower the object moves
+	console.log("traversal " ,missileTraversal)
+	return missileTraversal;
 }
 
 
@@ -63,23 +71,28 @@ return missileTraversal;
 
 function addMissiles(){
 
-	var missileTraversal = getRandomMissileTraversal();
-	var positions = [13,7,0]; // x and y positions
-	var counter = 0;
-	textureLoader = new THREE.TextureLoader()
-	textures.missileTexture = new textureLoader.load("textures/missile/png/11.png")
-	
-	meshes.missile[meshes.missile.length] = new THREE.Mesh(
-		new THREE.SphereGeometry(0.25),
-		new THREE.MeshBasicMaterial({ color: 0xf442d1, wireframe: false})
+	//creating a new missile
+
+	textureLoader = new THREE.TextureLoader();
+
+	var textureRand = Math.floor(Math.random() * 10); // for different rocks
+	textures.floorTexture = new textureLoader.load("textures/rocks/rock"+textureRand+".jpg",function(texture){
+	var missileSize = Math.random() + 0.2;	missileSize = (missileSize > 0.4)?0.4:Math.random();
+	missile.objects[missile.objects.length] = new THREE.Mesh(
+		new THREE.SphereGeometry(missileSize,32,32),
+		new THREE.MeshBasicMaterial({ map: texture,  wireframe: false})
 	)
-	console.log(meshes.missile)
-	currentMissile = meshes.missile[meshes.missile.length -1 ]
-	
-	currentMissile.position.x = positions[0];
-	currentMissile.position.y = positions[1];
-	currentMissile.position.z = positions[2];
+	//after creating a new missile
+	var currentMissile = missile.objects[missile.objects.length -1 ]
+	currentMissile.traversal = getRandomMissileTraversal();
+	var positionTemp = currentMissile.traversal.start
+	currentMissile.position.set(positionTemp.x,positionTemp.y,positionTemp.z)
+	console.log()
 	scene.add(currentMissile);
+
+	});
+
+
 
 }
 
@@ -200,9 +213,41 @@ function setCamera(){
 
 }
 
+function launchMissile(){
+
+	addMissiles();
+	var currentMissile = missile.objects[missile.objects.length -1 ]
+	currentMissile.isAlive = true;
+	
+}
+
+function animateMissiles(){
+
+	missile.objects.forEach(function(missile_object,index){
+		missile_object.position.add(missile_object.traversal.velocity)
+		missile_object.rotation.x+=0.1;
+		missile_object.rotation.y+=0.1;
+		missile_object.rotation.z+=0.1;
+		if (missile_object.position.y <=0)
+		{
+			missile.isAlive = false;
+			scene.remove(missile_object)
+			missile.objects.splice(index,1)
+		}
+	});
+
+}
+
 function animate(){
-	mesh = meshes.missile[meshes.missile.length -1 ]
 	requestAnimationFrame(animate)
+
+	// Animate Missiles
+
+	animateMissiles();
+
+
+/*	mesh = missile.objects[missile.objects.length -1 ]
+	
 	if(keyboard[37])
 	mesh.rotation.y += 0.01
 	if(keyboard[39])
@@ -213,15 +258,21 @@ function animate(){
 	mesh.rotation.x -= 0.01
 
 	if(keyboard[87])
-	mesh.position.y += 0.01
+	mesh.position.y += 0.1
 	if(keyboard[83])
-		mesh.position.y -= 0.01
+		mesh.position.y -= 0.1
 	if(keyboard[65])
-		mesh.position.x -= 0.01
+		mesh.position.x += 0.1
 	if(keyboard[68])
-		mesh.position.x += 0.01
+		mesh.position.x -= 0.1*/
 
 
+	if(missile.fireInterval < 0 & !missile.isAlive)
+	{
+		missile.fireInterval = missile.fireInterval_default 
+		launchMissile();
+	}
+	 missile.fireInterval--; // for each frame
 
 	renderer.render(scene,camera)
 
@@ -235,7 +286,6 @@ window.addEventListener('keydown',function(){
 window.addEventListener('keyup',function(){
 	keyboard[event.keyCode] = false
 })
-
 
 
 window.onload = init

@@ -71,8 +71,11 @@ function moveCrossHair(event){
 	var dir = vector.sub( camera.position ).normalize();
 	var distance = - camera.position.z / dir.z;
 	var pos = camera.position.clone().add( dir.multiplyScalar( distance ))
+	if(pos.y >= 0)
+	{
 	meshes.crossHair.position.copy(pos)
 	meshes.missileBlaster.lookAt(pos)
+	}
 
 	//making missile blaster look at cross hair
 }
@@ -89,7 +92,7 @@ function getRandomMissileTraversal(){
 	var random = Math.random() * 22
 	start[0] = Math.ceil(11 - random )
 	start[1] = 11
-	start[2] = 1 // since we will be having Z coordinate set
+	start[2] = 0 // since we will be having Z coordinate set
 	missileTraversal.start = new THREE.Vector3( start[0], start[1], start[2] );
 
 	var end = [];
@@ -97,7 +100,7 @@ function getRandomMissileTraversal(){
 	var random = Math.random() * 22 ; // ensuring the bombs are within resonable X limit for destination
 	end[0] = Math.ceil(11 - random )
 	end[1] = 0 // so that the bombs reach the ground
-	end[2] = 1 // so that it is in middle of Z
+	end[2] = 0 // so that it is in middle of Z
 	missileTraversal.end =  new THREE.Vector3( end[0], end[1], end[2] );
 	missileTraversal.velocity = new THREE.Vector3(0,0,0).add(missileTraversal.end)
 	missileTraversal.velocity.sub(missileTraversal.start);
@@ -181,15 +184,13 @@ function addCity(){
 
 function addMissileBlaster(){
 
-	var position = [0,0];
 	textureLoader = new THREE.TextureLoader()
 	textures.missileBlasterTexture = new textureLoader.load("textures/missile.jpg")
-
 	var coneGeom = new THREE.ConeGeometry(0.75, 2, 10);
 	coneGeom.translate(0, 1.3, 0);
 	coneGeom.rotateX(Math.PI / 2);
-
 	var coneMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.missileBlasterTexture, wireframe: false})
+
 	meshes.missileBlaster = new THREE.Mesh(coneGeom, coneMat);
 	meshes.missileBlaster.lookAt(new THREE.Vector3(0, 1, 0));
 

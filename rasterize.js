@@ -1,6 +1,6 @@
 var scene,camera,renderer,mesh,floor; // the all powerful objects that are needed to render objects and set view in three js
 var keyboard = {};
-var player ={ height: 3.8 , depth : -6}
+var player ={ height: 3.8 , depth : 6}
 var textureLoader;
 var textures = {};
 var meshes = {};
@@ -10,6 +10,7 @@ missile.fireInterval_default = 100
 missile.fireInterval = missile.fireInterval_default;
 missile.isAlive = false; // frames to make a shoot // changes for different levels
 missile.objects = [];
+var mouse ;
 
 
 function init(){
@@ -24,17 +25,56 @@ function init(){
 	addBackground();
 	addBuildings();
 	addMissileBlaster();
-	
+	showGrid();
 	addFloor();
 	setCamera();
+	setCrossHair();
 	animate();
 	console.log(camera);
 	console.log(renderer.domElement)
+
 
 }
 
 function deg2Rad(value){
 	return value * Math.PI / 180
+}
+
+function setCrossHair(){
+	mouse = new THREE.Vector2();
+	textureLoader = new THREE.TextureLoader();
+	textures.crossHair = new textureLoader.load("textures/crossHair.png",function(texture){
+	meshes.crossHair = new THREE.Mesh(
+		new THREE.PlaneGeometry(2,2,2,2),
+		new THREE.MeshBasicMaterial({  map: texture,transparent: true, wireframe: false})
+	)
+	meshes.crossHair.material.side = THREE.DoubleSide;
+	meshes.crossHair.position.y = 3;
+	meshes.crossHair.position.z = 1;
+	meshes.crossHair.rotation.x =  Math.PI ;
+
+	scene.add(meshes.crossHair)
+		
+	});
+
+}
+
+function moveCrossHair(event){
+
+	mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+	console.log("move ",mouse)	
+
+	// getting the position in terms of the real co-ordinates
+	var vector = new THREE.Vector3(mouse.x, mouse.y, 0);
+	vector.unproject( camera );
+	var dir = vector.sub( camera.position ).normalize();
+	var distance = - camera.position.z / dir.z;
+	var pos = camera.position.clone().add( dir.multiplyScalar( distance ))
+	meshes.crossHair.position.copy(pos)
+	meshes.missileBlaster.lookAt(pos)
+
+	//making missile blaster look at cross hair
 }
 
 function getRandomMissileTraversal(){
@@ -49,7 +89,7 @@ function getRandomMissileTraversal(){
 	var random = Math.random() * 22
 	start[0] = Math.ceil(11 - random )
 	start[1] = 11
-	start[2] = 0 // since we will be having Z coordinate set
+	start[2] = 1 // since we will be having Z coordinate set
 	missileTraversal.start = new THREE.Vector3( start[0], start[1], start[2] );
 
 	var end = [];
@@ -57,7 +97,7 @@ function getRandomMissileTraversal(){
 	var random = Math.random() * 22 ; // ensuring the bombs are within resonable X limit for destination
 	end[0] = Math.ceil(11 - random )
 	end[1] = 0 // so that the bombs reach the ground
-	end[2] = 0 // so that it is in middle of Z
+	end[2] = 1 // so that it is in middle of Z
 	missileTraversal.end =  new THREE.Vector3( end[0], end[1], end[2] );
 	missileTraversal.velocity = new THREE.Vector3(0,0,0).add(missileTraversal.end)
 	missileTraversal.velocity.sub(missileTraversal.start);
@@ -96,6 +136,12 @@ function addMissiles(){
 
 }
 
+function showGrid(){
+var grid = new THREE.GridHelper(30, 30, "white", "white");
+grid.rotation.x = Math.PI / 2;
+scene.add(grid);
+}
+
 function addBackground(){
 	//adding a box
 	textureLoader = new THREE.TextureLoader()
@@ -109,10 +155,10 @@ function addBackground(){
 			new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture, wireframe: false})
 		)
 		meshes.sky.material.side = THREE.DoubleSide;
-		meshes.sky.position.z = 5;
+		meshes.sky.position.z = -5;
 		meshes.sky.position.y = 9;
-		meshes.sky.rotation.z = -Math.PI ;
-		meshes.sky.rotation.x =  Math.PI ;
+		meshes.sky.rotation.z =  Math.PI ;
+		meshes.sky.rotation.x =  -Math.PI ;
 		scene.add(meshes.sky)
 		
 	});
@@ -135,18 +181,19 @@ function addCity(){
 
 function addMissileBlaster(){
 
-	var position = [0,-1];
+	var position = [0,0];
 	textureLoader = new THREE.TextureLoader()
 	textures.missileBlasterTexture = new textureLoader.load("textures/missile.jpg")
 
-	meshes.missileBlaster = new THREE.Mesh(
-		new THREE.SphereGeometry( 1, 3, 3, 0 , Math.PI, 0, Math.PI *2),
-		new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.missileBlasterTexture, wireframe: false})
-	)
-	meshes.missileBlaster.material.side = THREE.DoubleSide;
-	meshes.missileBlaster.position.x = position[0]
-	meshes.missileBlaster.position.z = position[1]
-	meshes.missileBlaster.position.y = 1.3
+	var coneGeom = new THREE.ConeGeometry(0.75, 2, 10);
+	coneGeom.translate(0, 1.3, 0);
+	coneGeom.rotateX(Math.PI / 2);
+
+	var coneMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.missileBlasterTexture, wireframe: false})
+	meshes.missileBlaster = new THREE.Mesh(coneGeom, coneMat);
+	meshes.missileBlaster.lookAt(new THREE.Vector3(0, 1, 0));
+
+	//meshes.missileBlaster.lookAt(new THREE.Vector3(position[0], 2, position[1]));
 	scene.add(meshes.missileBlaster)
 
 
@@ -154,7 +201,7 @@ function addMissileBlaster(){
 
 function addBuildings(){
 
-	var positions = [[-6,1],[-5,0],[-4,1],[-3,0],[-2,1],[-1,0],[0,1],[1,0],[2,1],[3,0],[4,1],[5,0],[6,1],
+	var positions = [[-6,1],[-5,0],[-4,1],[-3,0],[-2,1],[0,-1],[2,1],[3,0],[4,1],[5,0],[6,1],
 		[-6,-1],[-4,-1],[-2,-1],[2,-1],[4,-1],[6,-1]]; // x and y positions
 	var texturesArray = ["building_1.jpg","building_2.jpg","building_3.jpg","building_4.jpg","building_5.jpg","building_6.jpg"];
 	var counter = 0;
@@ -200,11 +247,6 @@ function addFloor(){
 function setCamera(){
 // setting the camera away from the origin and at the height of the player
 // these values are useful in setting missile positions to FOV
-	 console.log("fov",camera.fov)
-	 camera.X_LIMIT = Math.tan(deg2Rad(camera.fov / 2 )) * 2;
-	 renderer.aspect_r  = renderer.domElement.width
-	 camera.Y_LIMIT = camera.X_LIMIT / renderer.aspect_r;
-	 camera.Z_LIMIT = 0
 
 	camera.position.set(0,player.height, player.depth); // since the objects by default appears at 0,0,0
 	camera.lookAt(new THREE.Vector3(0,3.8,0))
@@ -212,6 +254,7 @@ function setCamera(){
 
 
 }
+
 
 function launchMissile(){
 
@@ -237,6 +280,8 @@ function animateMissiles(){
 	});
 
 }
+
+
 
 function animate(){
 	requestAnimationFrame(animate)
@@ -278,6 +323,11 @@ function animate(){
 
 }
 
+var plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+var intersectPoint = new THREE.Vector3();
+
 
 window.addEventListener('keydown',function(){
 	keyboard[event.keyCode] = true
@@ -287,9 +337,10 @@ window.addEventListener('keyup',function(){
 	keyboard[event.keyCode] = false
 })
 
+window.addEventListener('mousemove',function(event){
+	console.log("Mouse Moves")
+	moveCrossHair(event)
+});
+
 
 window.onload = init
-
-
-
-

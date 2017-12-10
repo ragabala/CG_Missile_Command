@@ -26,6 +26,9 @@ var antiMissile = {
 var COLLISION_ACCURACY = 1;
 
 var buildings = []
+var explosion = {
+	objects :[]	
+}
 
 var mouse ;
 
@@ -351,39 +354,37 @@ function animateMissiles(){
 
 function collisionDeduction(){
 
-	var isHit = false
-	var positionTemp;
 
+	var positionTemp;
 
 	missile.objects.forEach(function(missile_object,index){
 		antiMissile.objects.forEach(function(anti_missile_object,index1){
 			if (missile_object.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY)
 			{
 				console.log("Missile HIT")
-				positionTemp = missile_object.position
+				positionTemp = new THREE.Vector3(0,0,0).copy(missile_object.position)
+				console.log(missile_object.position)
 				disposeObject(missile_object)
 				disposeObject(anti_missile_object)
 				missile.objects.splice(index,1)
 				antiMissile.objects.splice(index1,1)
-				isHit = true
+				createExplosion("missile",positionTemp)
 			}
 		})
 		buildings.forEach(function(buildingTemp,index1){
 			if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY)
 			{
 				console.log("BUILDING HIT")
-				positionTemp = missile_object.position
+				positionTemp = new THREE.Vector3(0,0,0).copy(missile_object.position)
 				disposeObject(missile_object)
 				disposeObject(buildingTemp)
 				missile.objects.splice(index,1)
 				buildings.splice(index1,1)
-				isHit = true
+				createExplosion("building",positionTemp)
 			}
 		})
 
-		if(isHit){
-			//create an explosion at the position
-		}
+	
 
 	})
 	// make missiles move by a frame after checking whether they collided
@@ -392,6 +393,29 @@ function collisionDeduction(){
 
 }
 
+
+function createExplosion(type,positionVal){
+	var texture = "textures/explosions/";
+	if(type == 'building')
+		texture+= 'building_explosion.png';
+	else
+		texture+= "explosion"+Math.ceil(Math.random()*3)+".png";
+
+	textureLoader = new THREE.TextureLoader();
+	textures.explosion = new textureLoader.load(texture,function(texture){
+	meshes.explosion = new THREE.Mesh(
+		new THREE.PlaneGeometry(2,2,2,2),
+		new THREE.MeshBasicMaterial({  map: texture,transparent: true, wireframe: false})
+	)
+	meshes.explosion.material.side = THREE.DoubleSide;
+	meshes.explosion.position.copy(positionVal)
+	scene.add(meshes.explosion)
+	});
+
+	setTimeout(function(){ scene.remove(meshes.explosion) }, 500);
+
+
+}
 
 function animate(){
 	requestAnimationFrame(animate)

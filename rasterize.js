@@ -1,15 +1,32 @@
 var scene,camera,renderer,mesh,floor; // the all powerful objects that are needed to render objects and set view in three js
 var keyboard = {};
-var player ={ height: 3.8 , depth : 6}
+var player = { 
+	height: 3.8 ,
+    depth : 6 ,
+    
+}
 var textureLoader;
 var textures = {};
 var meshes = {};
 
-var missile = {};
-missile.fireInterval_default = 100
-missile.fireInterval = missile.fireInterval_default;
-missile.isAlive = false; // frames to make a shoot // changes for different levels
-missile.objects = [];
+var missile = {
+	fireInterval_default : 100,
+	fireInterval : 100,
+	objects :[],
+	missileSlowRate : 500
+};
+
+var antiMissile = {
+	fireInterval_default : 10,
+	fireInterval : 10,
+	objects :[],
+	missileSlowRate : 20
+};
+
+var COLLISION_ACCURACY = 1;
+
+var buildings = []
+
 var mouse ;
 
 
@@ -59,18 +76,23 @@ function setCrossHair(){
 
 }
 
-function moveCrossHair(event){
 
+
+function getScreenPositionForMouseEvent(event){
 	mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-	console.log("move ",mouse)	
-
 	// getting the position in terms of the real co-ordinates
 	var vector = new THREE.Vector3(mouse.x, mouse.y, 0);
 	vector.unproject( camera );
 	var dir = vector.sub( camera.position ).normalize();
 	var distance = - camera.position.z / dir.z;
-	var pos = camera.position.clone().add( dir.multiplyScalar( distance ))
+	return camera.position.clone().add( dir.multiplyScalar( distance ))
+}
+
+
+function moveCrossHair(event){
+
+	var pos = getScreenPositionForMouseEvent(event)
 	if(pos.y >= 0)
 	{
 	meshes.crossHair.position.copy(pos)
@@ -104,7 +126,7 @@ function getRandomMissileTraversal(){
 	missileTraversal.end =  new THREE.Vector3( end[0], end[1], end[2] );
 	missileTraversal.velocity = new THREE.Vector3(0,0,0).add(missileTraversal.end)
 	missileTraversal.velocity.sub(missileTraversal.start);
-	missileTraversal.velocity = missileTraversal.velocity.divideScalar(100); // the more this value the slower the object moves
+	missileTraversal.velocity = missileTraversal.velocity.divideScalar(missile.missileSlowRate); // the more this value the slower the object moves
 	console.log("traversal " ,missileTraversal)
 	return missileTraversal;
 }
@@ -117,7 +139,6 @@ function addMissiles(){
 	//creating a new missile
 
 	textureLoader = new THREE.TextureLoader();
-
 	var textureRand = Math.floor(Math.random() * 10); // for different rocks
 	textures.floorTexture = new textureLoader.load("textures/rocks/rock"+textureRand+".jpg",function(texture){
 	var missileSize = Math.random() + 0.2;	missileSize = (missileSize > 0.4)?0.4:Math.random();
@@ -130,19 +151,47 @@ function addMissiles(){
 	currentMissile.traversal = getRandomMissileTraversal();
 	var positionTemp = currentMissile.traversal.start
 	currentMissile.position.set(positionTemp.x,positionTemp.y,positionTemp.z)
+	currentMissile.spin = Math.floor(Math.random() * 3) // to make all missiles different in spins
 	console.log()
 	scene.add(currentMissile);
-
 	});
+}
+
+function launchAntiMissiles(event){
+	if(antiMissile.fireInterval >= 0) return; // 
+	antiMissile.fireInterval = 24; //resetting back
+	var destination = getScreenPositionForMouseEvent(event)
+	console.log("clicked at ,",destination)
+	addAntiMissile(destination);
+
+}
 
 
+function addAntiMissile(destination){
+
+	var antiMissileTemp = new THREE.Mesh(
+		new THREE.SphereGeometry(0.1,32,32),
+		new THREE.MeshBasicMaterial({ color : 0xff0000,  wireframe: false})
+	)
+
+	var currentMissile = antiMissileTemp
+	currentMissile.position = meshes.missileBlaster.position
+	var missileTraversal = {}
+	missileTraversal.start = currentMissile.position
+	missileTraversal.end = destination
+	missileTraversal.velocity = new THREE.Vector3(0,0,0).add(missileTraversal.end)
+	missileTraversal.velocity.sub(missileTraversal.start);
+	missileTraversal.velocity = missileTraversal.velocity.divideScalar(antiMissile.missileSlowRate);
+	currentMissile.traversal = missileTraversal
+	scene.add(currentMissile)
+	antiMissile.objects.push(currentMissile)
 
 }
 
 function showGrid(){
-var grid = new THREE.GridHelper(30, 30, "white", "white");
-grid.rotation.x = Math.PI / 2;
-scene.add(grid);
+	var grid = new THREE.GridHelper(30, 30, "white", "white");
+	grid.rotation.x = Math.PI / 2;
+	scene.add(grid);
 }
 
 function addBackground(){
@@ -219,9 +268,8 @@ function addBuildings(){
 	mesh.position.z = position[1];
 	mesh.position.y = 1;
 	scene.add(mesh)
+	buildings.push(mesh)
 	});
-
-
 
 }
 
@@ -261,27 +309,88 @@ function launchMissile(){
 
 	addMissiles();
 	var currentMissile = missile.objects[missile.objects.length -1 ]
-	currentMissile.isAlive = true;
-	
+}
+
+function disposeObject(object){
+
+	object.material.dispose();
+	object.geometry.dispose();
+	scene.remove(object);
+
 }
 
 function animateMissiles(){
 
 	missile.objects.forEach(function(missile_object,index){
 		missile_object.position.add(missile_object.traversal.velocity)
+		if(missile_object.spin == 0)
 		missile_object.rotation.x+=0.1;
+		else if(missile_object.spin == 1)
 		missile_object.rotation.y+=0.1;
+		else if(missile_object.spin == 2)
 		missile_object.rotation.z+=0.1;
 		if (missile_object.position.y <=0)
 		{
-			missile.isAlive = false;
-			scene.remove(missile_object)
+			disposeObject(missile_object)
 			missile.objects.splice(index,1)
 		}
 	});
 
+	antiMissile.objects.forEach(function(missile_object,index){
+		missile_object.position.add(missile_object.traversal.velocity)
+		if (missile_object.position.distanceTo(missile_object.traversal.end) < 0.2)
+		{
+			disposeObject(missile_object)
+			antiMissile.objects.splice(index,1)
+		}
+	});
+
+
 }
 
+
+function collisionDeduction(){
+
+	var isHit = false
+	var positionTemp;
+
+
+	missile.objects.forEach(function(missile_object,index){
+		antiMissile.objects.forEach(function(anti_missile_object,index1){
+			if (missile_object.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY)
+			{
+				console.log("Missile HIT")
+				positionTemp = missile_object.position
+				disposeObject(missile_object)
+				disposeObject(anti_missile_object)
+				missile.objects.splice(index,1)
+				antiMissile.objects.splice(index1,1)
+				isHit = true
+			}
+		})
+		buildings.forEach(function(buildingTemp,index1){
+			if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY)
+			{
+				console.log("BUILDING HIT")
+				positionTemp = missile_object.position
+				disposeObject(missile_object)
+				disposeObject(buildingTemp)
+				missile.objects.splice(index,1)
+				buildings.splice(index1,1)
+				isHit = true
+			}
+		})
+
+		if(isHit){
+			//create an explosion at the position
+		}
+
+	})
+	// make missiles move by a frame after checking whether they collided
+	animateMissiles();
+
+
+}
 
 
 function animate(){
@@ -289,7 +398,9 @@ function animate(){
 
 	// Animate Missiles
 
-	animateMissiles();
+	collisionDeduction();
+	
+
 
 
 /*	mesh = missile.objects[missile.objects.length -1 ]
@@ -311,18 +422,20 @@ function animate(){
 		mesh.position.x += 0.1
 	if(keyboard[68])
 		mesh.position.x -= 0.1*/
-
-
-	if(missile.fireInterval < 0 & !missile.isAlive)
+	if(missile.fireInterval < 0)
 	{
 		missile.fireInterval = missile.fireInterval_default 
 		launchMissile();
 	}
-	 missile.fireInterval--; // for each frame
-
-	renderer.render(scene,camera)
+	missile.fireInterval--; // for each frame
+	antiMissile.fireInterval--;
+ 	renderer.render(scene,camera)
 
 }
+
+
+
+
 
 var plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 var raycaster = new THREE.Raycaster();
@@ -341,6 +454,12 @@ window.addEventListener('keyup',function(){
 window.addEventListener('mousemove',function(event){
 	console.log("Mouse Moves")
 	moveCrossHair(event)
+});
+
+
+window.addEventListener('mousedown',function(event){
+	console.log("mouse clicked")
+	launchAntiMissiles(event);
 });
 
 

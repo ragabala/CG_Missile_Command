@@ -1,4 +1,4 @@
-var scene,camera,renderer,mesh,floor; // the all powerful objects that are needed to render objects and set view in three js
+var scene,camera,renderer,mesh,floor,listener; // the all powerful objects that are needed to render objects and set view in three js
 var keyboard = {};
 var player = { 
 	height: 3.8 ,
@@ -58,6 +58,7 @@ function init(){
 	$('body').append(renderer.domElement)
 	console.log(renderer)
 	addBackground();
+	addSound();
 	addBuildings();
 	addMissileBlaster();
 	showGrid();
@@ -70,6 +71,8 @@ function init(){
 
 
 }
+
+
 
 function deg2Rad(value){
 	return value * Math.PI / 180
@@ -180,6 +183,7 @@ function launchAntiMissiles(event){
 	var destination = getScreenPositionForMouseEvent(event)
 	console.log("clicked at ,",destination)
 	addAntiMissile(destination);
+	playSound(antiMissile.sound)
 
 }
 
@@ -200,12 +204,56 @@ function addAntiMissile(destination){
 	scene.add(currentMissile)
 	antiMissile.objects.push(currentMissile)
 
+
 }
 
 function showGrid(){
 	var grid = new THREE.GridHelper(30, 30, "white", "white");
 	grid.rotation.x = Math.PI / 2;
 	scene.add(grid);
+}
+
+
+function addSound(){
+listener = new THREE.AudioListener();
+camera.add( listener );
+
+// create an Audio source
+// BGM 
+var sound = new THREE.Audio( listener );
+var audioLoader = new THREE.AudioLoader();
+//Load a sound and set it as the Audio object's buffer
+	audioLoader.load( 'Sounds/bgm.ogg', function( buffer ) {
+	sound.setBuffer( buffer );
+	sound.setLoop(true);
+	sound.setVolume(0.5);
+	sound.play();
+});
+
+
+// create an Audio source
+// AntiMissile 
+var sound1 = new THREE.Audio( listener );
+var audioLoader1 = new THREE.AudioLoader();
+//Load a sound and set it as the Audio object's buffer
+	audioLoader1.load( 'Sounds/missileLaunch.ogg', function( buffer ) {
+	sound1.setBuffer( buffer );
+	sound1.setLoop(false);
+});
+
+antiMissile.sound = sound1;
+
+// create an Audio source
+// AntiMissile 
+var sound2 = new THREE.Audio( listener );
+var audioLoader2 = new THREE.AudioLoader();
+//Load a sound and set it as the Audio object's buffer
+	audioLoader2.load( 'Sounds/explosion.ogg', function( buffer ) {
+	sound2.setBuffer( buffer );
+	sound2.setLoop(false);
+});
+
+explosions.sound = sound2;
 }
 
 function addBackground(){
@@ -243,6 +291,12 @@ function addCity(){
 	mesh.position.y += 1;
 	scene.add(mesh)
 
+}
+
+function playSound(sound){
+	if(sound.isPlaying)
+		sound.stop()
+	sound.play()
 }
 
 function addMissileBlaster(){
@@ -433,6 +487,7 @@ function createExplosion(type,positionVal){
 		scene.add(mesh)
 		console.log("explosions : ",mesh)
 		mesh.justCreated = true
+		playSound(explosions.sound)
 		explosions.objects.push(mesh)
 	});
 

@@ -13,21 +13,36 @@ var missile = {
 	fireInterval_default : 100,
 	fireInterval : 100,
 	objects :[],
-	missileSlowRate : 500
+	missileSlowRate : 500,
 };
 
 var antiMissile = {
 	fireInterval_default : 10,
 	fireInterval : 10,
 	objects :[],
-	missileSlowRate : 20
+	missileSlowRate : 20,
+	model :  new THREE.Mesh(
+		new THREE.SphereGeometry(0.1,32,32),
+		new THREE.MeshBasicMaterial({ color : 0xff0000,  wireframe: false})
+	)
+
 };
 
 var COLLISION_ACCURACY = 1;
 
-var buildings = []
-var explosion = {
-	objects :[]	
+var buildings = {
+	objects : [],
+	model : new THREE.Mesh(
+		new THREE.BoxGeometry(1,1.6,0.4)
+	)
+}
+var explosions = {
+	objects :[],
+	model : new THREE.Mesh(
+		new THREE.PlaneGeometry(2,2,2,2)
+	),
+	diminishSpeed : 0.95,
+	explosionSpeed : 1.1
 }
 
 var mouse ;
@@ -143,20 +158,19 @@ function addMissiles(){
 
 	textureLoader = new THREE.TextureLoader();
 	var textureRand = Math.floor(Math.random() * 10); // for different rocks
-	textures.floorTexture = new textureLoader.load("textures/rocks/rock"+textureRand+".jpg",function(texture){
-	var missileSize = Math.random() + 0.2;	missileSize = (missileSize > 0.4)?0.4:Math.random();
-	missile.objects[missile.objects.length] = new THREE.Mesh(
+	textures.missileTexture = new textureLoader.load("textures/rocks/rock"+textureRand+".jpg",function(texture){
+	var missileSize = Math.random() + 0.2;	
+	missileSize = (missileSize > 0.4)?0.4: missileSize;
+	mesh = new THREE.Mesh(
 		new THREE.SphereGeometry(missileSize,32,32),
 		new THREE.MeshBasicMaterial({ map: texture,  wireframe: false})
 	)
-	//after creating a new missile
-	var currentMissile = missile.objects[missile.objects.length -1 ]
-	currentMissile.traversal = getRandomMissileTraversal();
-	var positionTemp = currentMissile.traversal.start
-	currentMissile.position.set(positionTemp.x,positionTemp.y,positionTemp.z)
-	currentMissile.spin = Math.floor(Math.random() * 3) // to make all missiles different in spins
-	console.log()
-	scene.add(currentMissile);
+	mesh.traversal = getRandomMissileTraversal();
+	var positionTemp = mesh.traversal.start
+	mesh.position.set(positionTemp.x,positionTemp.y,positionTemp.z)
+	mesh.spin = Math.floor(Math.random() * 3) // to make all missiles different in spins
+	scene.add(mesh);
+	missile.objects.push(mesh)
 	});
 }
 
@@ -172,10 +186,7 @@ function launchAntiMissiles(event){
 
 function addAntiMissile(destination){
 
-	var antiMissileTemp = new THREE.Mesh(
-		new THREE.SphereGeometry(0.1,32,32),
-		new THREE.MeshBasicMaterial({ color : 0xff0000,  wireframe: false})
-	)
+	var antiMissileTemp = antiMissile.model.clone();
 
 	var currentMissile = antiMissileTemp
 	currentMissile.position = meshes.missileBlaster.position
@@ -262,16 +273,15 @@ function addBuildings(){
 	textureLoader = new THREE.TextureLoader()
 	textures.buildingTexture = new textureLoader.load("textures/"+texturesArray[counter])
 	counter = (counter + 1) % texturesArray.length // for changing the textures for each building
-	mesh = new THREE.Mesh(
-		new THREE.BoxGeometry(1,1.6,0.4),
-		new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.buildingTexture, wireframe: false})
-	)
-	
+	mesh = buildings.model.clone()
+	mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.buildingTexture, wireframe: false});
+	console.log
+
 	mesh.position.x = position[0];
 	mesh.position.z = position[1];
 	mesh.position.y = 1;
 	scene.add(mesh)
-	buildings.push(mesh)
+	buildings.objects.push(mesh)
 	});
 
 }
@@ -337,7 +347,7 @@ function animateMissiles(){
 			disposeObject(missile_object)
 			missile.objects.splice(index,1)
 		}
-	});
+	}); //end of foreach missile
 
 	antiMissile.objects.forEach(function(missile_object,index){
 		missile_object.position.add(missile_object.traversal.velocity)
@@ -346,8 +356,21 @@ function animateMissiles(){
 			disposeObject(missile_object)
 			antiMissile.objects.splice(index,1)
 		}
-	});
-
+	}); //end of foreach antimissile
+ 
+	// reduce explosion size for each passing frames
+	explosions.objects.forEach(function(explosion,index){
+		if(explosion.scale.x < 0.3 ){
+			disposeObject(explosion)
+			explosions.objects.splice(index,1)
+		}
+		else if (explosion.scale.x < 2 && explosion.justCreated)
+			explosion.scale.multiplyScalar(explosions.explosionSpeed)
+		else {
+				explosion.scale.multiplyScalar(explosions.diminishSpeed)
+				explosion.justCreated = false
+			}
+		});
 
 }
 
@@ -371,7 +394,7 @@ function collisionDeduction(){
 				createExplosion("missile",positionTemp)
 			}
 		})
-		buildings.forEach(function(buildingTemp,index1){
+		buildings.objects.forEach(function(buildingTemp,index1){
 			if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY)
 			{
 				console.log("BUILDING HIT")
@@ -379,7 +402,7 @@ function collisionDeduction(){
 				disposeObject(missile_object)
 				disposeObject(buildingTemp)
 				missile.objects.splice(index,1)
-				buildings.splice(index1,1)
+				buildings.objects.splice(index1,1)
 				createExplosion("building",positionTemp)
 			}
 		})
@@ -403,19 +426,25 @@ function createExplosion(type,positionVal){
 
 	textureLoader = new THREE.TextureLoader();
 	textures.explosion = new textureLoader.load(texture,function(texture){
-	meshes.explosion = new THREE.Mesh(
-		new THREE.PlaneGeometry(2,2,2,2),
-		new THREE.MeshBasicMaterial({  map: texture,transparent: true, wireframe: false})
-	)
-	meshes.explosion.material.side = THREE.DoubleSide;
-	meshes.explosion.position.copy(positionVal)
-	scene.add(meshes.explosion)
+		mesh = explosions.model.clone();
+		mesh.material = new THREE.MeshBasicMaterial({ map: texture,transparent: true, wireframe: false, side : THREE.DoubleSide});
+		mesh.position.copy(positionVal)
+		if(type == 'building') mesh.position.y-=1 // to make it more aligned with ground
+		scene.add(mesh)
+		console.log("explosions : ",mesh)
+		mesh.justCreated = true
+		explosions.objects.push(mesh)
 	});
 
-	setTimeout(function(){ scene.remove(meshes.explosion) }, 500);
+	//setTimeout(function(){ scene.remove(mesh) }, 500);
 
 
 }
+
+function getClone(object){
+	return JSON.parse(JSON.stringify(object));
+}
+
 
 function animate(){
 	requestAnimationFrame(animate)

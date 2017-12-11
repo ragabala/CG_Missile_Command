@@ -13,10 +13,12 @@ var missile = {
 	fireInterval_default : 100,
 	fireInterval : 100,
 	objects :[],
-	missileSlowRate : 500, // more the value , slower the game
+	missileSlowRate : 800, // more the value , slower the game
 	missileSlowRateDefault : 500,
-	missileLevelUp : 100,
-	isAlive : false
+	missileLevelUp : 50,
+	isAlive : false,
+	cloneCheck : true, // allows missile to be cloned at random
+	splitProbability : 5 // means one in every 5 missiles will split - probability
 };
 
 var antiMissile = {
@@ -137,6 +139,7 @@ function resetGameValues(){
 	score.points = 0
 	score.level = 1  
 	score.destroyedObjects = 0
+	missile.cloneCheck = true
 	missile.missileSlowRate = missile.missileSlowRateDefault
 	antiMissile.missileSlowRate = antiMissile.missileSlowRateDefault
 	$("#scoreDom").html(score.points)
@@ -176,6 +179,7 @@ function levelUp(){
 	missile.missileSlowRate -= missile.missileLevelUp
 	if(antiMissile.missileSlowRate > 5) // maximum speed
 	antiMissile.missileSlowRate -= antiMissile.missileLevelUp
+	missile.cloneCheck = true;
 }
 
 
@@ -237,9 +241,8 @@ function getRandomMissileTraversal(){
 
 
 function addMissiles(){
-
 	//creating a new missile
-
+	console.log("missile obj " ,missile)
 	textureLoader = new THREE.TextureLoader();
 	var textureRand = Math.floor(Math.random() * 10); // for different rocks
 	textures.missileTexture = new textureLoader.load("textures/rocks/rock"+textureRand+".jpg",function(texture){
@@ -253,9 +256,41 @@ function addMissiles(){
 	var positionTemp = mesh.traversal.start
 	mesh.position.set(positionTemp.x,positionTemp.y,positionTemp.z)
 	mesh.spin = Math.floor(Math.random() * 3) // to make all missiles different in spins
+	mesh.isClone = true
 	scene.add(mesh);
 	missile.objects.push(mesh)
 	});
+}
+
+function cloneMissile(missileObject){
+	console.log("cloned");
+	var cloneMissile = missileObject.clone();
+	var tempTraversal = getRandomMissileTraversal();
+	tempTraversal.start = cloneMissile.position;
+	tempTraversal.velocity = new THREE.Vector3(0,0,0).add(tempTraversal.end)
+	tempTraversal.velocity.sub(tempTraversal.start);
+	tempTraversal.velocity = tempTraversal.velocity.divideScalar(missile.missileSlowRate);
+	cloneMissile.traversal = tempTraversal
+	scene.add(cloneMissile);
+	missile.objects.push(cloneMissile)
+
+}
+
+function setCloneMissile(missileObj){
+	var launchPosition = missileObj.position.y
+	if((launchPosition >= 8.9 && launchPosition < 9))
+	{
+		//console.log(launchPosition)
+		if(Math.ceil(Math.random() * missile.splitProbability) == missile.splitProbability && missileObj.isClone) // all missiles will split with probability of 1/5
+		{	
+			//missile.cloneCheck = false;
+			 missileObj.isClone = false;
+			cloneMissile(missileObj); // will split the missile into two 
+			
+		}
+	}
+
+
 }
 
 function launchAntiMissiles(event){
@@ -273,7 +308,6 @@ function launchAntiMissiles(event){
 function addAntiMissile(destination){
 
 	var antiMissileTemp = antiMissile.model.clone();
-
 	var currentMissile = antiMissileTemp
 	currentMissile.position = meshes.missileBlaster.position
 	var missileTraversal = {}
@@ -482,6 +516,7 @@ function launchMissile(){
 
 	addMissiles();
 	var currentMissile = missile.objects[missile.objects.length -1 ]
+
 }
 
 function disposeObject(object){
@@ -502,6 +537,7 @@ function animateMissiles(){
 		missile_object.rotation.y+=0.1;
 		else if(missile_object.spin == 2)
 		missile_object.rotation.z+=0.1;
+		setCloneMissile(missile_object);
 		if (missile_object.position.y <=0)
 		{
 			disposeObject(missile_object)

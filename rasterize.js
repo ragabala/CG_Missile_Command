@@ -14,7 +14,9 @@ var missile = {
 	fireInterval : 100,
 	objects :[],
 	missileSlowRate : 500, // more the value , slower the game
-	missileLevelUp : 20
+	missileSlowRateDefault : 500,
+	missileLevelUp : 100,
+	isAlive : false
 };
 
 var antiMissile = {
@@ -22,11 +24,13 @@ var antiMissile = {
 	fireInterval : 10,
 	objects :[],
 	missileSlowRate : 20,
+	missileSlowRateDefault : 20,
 	missileLevelUp : 2,
 	model :  new THREE.Mesh(
 		new THREE.SphereGeometry(0.1,32,32),
 		new THREE.MeshBasicMaterial({ color : 0xff0000,  wireframe: false})
-	)
+	),
+	isAlive : false
 
 };
 
@@ -35,7 +39,11 @@ var score = {
 	level : 1 , 
 	destroyedObjects : 0,
 	levelUp : 10,
-	pointsUp :5
+	pointsUp :5,
+}
+
+var game = {
+	restart : false,
 }
 
 var COLLISION_ACCURACY = 1;
@@ -66,12 +74,13 @@ function init(){
 	renderer.setClearColor( 0x000000, 0 );
 	renderer.setSize(window.innerWidth,window.innerHeight);
 	$('body').append(renderer.domElement)
-	console.log(renderer)
+	//console.log(renderer)
+	startGame();
 	addBackground();
 	addSound();
 	addBuildings();
 	addMissileBlaster();
-	showGrid();
+	//showGrid();
 	addFloor();
 	setCamera();
 	setCrossHair();
@@ -79,6 +88,61 @@ function init(){
 }
 
 
+function startGame(){
+
+	$("#info").html("<u>click here to start</u>");
+	$("#info").show();
+}
+
+
+$("#info").click(function(event){
+	$("#info").hide();
+	missile.isAlive = true
+	antiMissile.isAlive = true
+	if(game.restart)
+		assembleDestroyed();
+
+})
+
+function assembleDestroyed()
+{
+	//console.log("assembleDestroyed")
+	buildings.objects.forEach(function(building,index)
+	{
+		building.visible = true
+	});
+	meshes.missileBlaster.visible = true
+}
+
+function endGame(){
+
+	missile.objects.forEach(function(missile,index)
+	{
+		disposeObject(missile)
+	});
+
+	missile.objects = []
+	
+	$("#info").html("<p> GameOver <br/> <span style='font-size:60px'> Your Score : "+score.points+" <br/>Click here to restart Game</span></p>");
+	resetGameValues();
+	$("#info").show();
+	missile.isAlive = false
+	antiMissile.isAlive = false
+	game.restart = true
+
+
+}
+
+function resetGameValues(){
+	score.points = 0
+	score.level = 1  
+	score.destroyedObjects = 0
+	missile.missileSlowRate = missile.missileSlowRateDefault
+	antiMissile.missileSlowRate = antiMissile.missileSlowRateDefault
+	$("#scoreDom").html(score.points)
+	$("#levelDom").html(score.level)
+
+}
 
 function deg2Rad(value){
 	return value * Math.PI / 180
@@ -103,8 +167,15 @@ function setCrossHair(){
 }
 
 function levelUp(){
-	fireInterval_default = 1000
-
+	playSound(score.sound);
+	$("#levelDom").css("color","red")
+	$("#levelDom").animate({ fontSize: "90px"}, 3000);
+	$("#levelDom").css("color","white")
+	$("#levelDom").animate({ fontSize: "20px"},1000);
+	if(missile.missileSlowRate > 100) // maximum speed
+	missile.missileSlowRate -= missile.missileLevelUp
+	if(antiMissile.missileSlowRate > 5) // maximum speed
+	antiMissile.missileSlowRate -= antiMissile.missileLevelUp
 }
 
 
@@ -158,7 +229,7 @@ function getRandomMissileTraversal(){
 	missileTraversal.velocity = new THREE.Vector3(0,0,0).add(missileTraversal.end)
 	missileTraversal.velocity.sub(missileTraversal.start);
 	missileTraversal.velocity = missileTraversal.velocity.divideScalar(missile.missileSlowRate); // the more this value the slower the object moves
-	console.log("traversal " ,missileTraversal)
+	//console.log("traversal " ,missileTraversal)
 	return missileTraversal;
 }
 
@@ -188,12 +259,13 @@ function addMissiles(){
 }
 
 function launchAntiMissiles(event){
-	if(antiMissile.fireInterval >= 0) return; // 
+	if(antiMissile.fireInterval >= 0 || !antiMissile.isAlive) return; // 
 	antiMissile.fireInterval = 24; //resetting back
 	var destination = getScreenPositionForMouseEvent(event)
-	console.log("clicked at ,",destination)
+	//console.log("clicked at ,",destination)
 	addAntiMissile(destination);
 	playSound(antiMissile.sound)
+
 
 }
 
@@ -275,6 +347,20 @@ var audioLoader2 = new THREE.AudioLoader();
 });
 
 explosions.sound = sound2;
+
+
+// create an Audio source
+// LevelUpSound 
+var sound3 = new THREE.Audio( listener );
+var audioLoader3 = new THREE.AudioLoader();
+//Load a sound and set it as the Audio object's buffer
+	audioLoader3.load( 'Sounds/levelUp.wav', function( buffer ) {
+	sound3.setBuffer( buffer );
+	sound3.setLoop(false);
+});
+
+score.sound = sound3;
+
 }
 
 function addBackground(){
@@ -331,6 +417,7 @@ function addMissileBlaster(){
 
 	meshes.missileBlaster = new THREE.Mesh(coneGeom, coneMat);
 	meshes.missileBlaster.lookAt(new THREE.Vector3(0, 1, 0));
+	////console.log("missile blaster ",meshes.missileBlaster)
 
 	//meshes.missileBlaster.lookAt(new THREE.Vector3(position[0], 2, position[1]));
 	scene.add(meshes.missileBlaster)
@@ -350,7 +437,7 @@ function addBuildings(){
 	counter = (counter + 1) % texturesArray.length // for changing the textures for each building
 	mesh = buildings.model.clone()
 	mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.buildingTexture, wireframe: false});
-	console.log
+	//console.log
 
 	mesh.position.x = position[0];
 	mesh.position.z = position[1];
@@ -388,8 +475,6 @@ function setCamera(){
 	camera.position.set(0,player.height, player.depth); // since the objects by default appears at 0,0,0
 	camera.lookAt(new THREE.Vector3(0,3.8,0))
 
-
-
 }
 
 
@@ -421,6 +506,8 @@ function animateMissiles(){
 		{
 			disposeObject(missile_object)
 			missile.objects.splice(index,1)
+			createExplosion("building",missile_object.position)
+			endGame();
 		}
 	}); //end of foreach missile
 
@@ -459,9 +546,9 @@ function collisionDeduction(){
 		antiMissile.objects.forEach(function(anti_missile_object,index1){
 			if (missile_object.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY)
 			{
-				console.log("Missile HIT")
+				//console.log("Missile HIT")
 				positionTemp = new THREE.Vector3(0,0,0).copy(missile_object.position)
-				console.log(missile_object.position)
+				//console.log(missile_object.position)
 				disposeObject(missile_object)
 				disposeObject(anti_missile_object)
 				missile.objects.splice(index,1)
@@ -473,16 +560,32 @@ function collisionDeduction(){
 		buildings.objects.forEach(function(buildingTemp,index1){
 			if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY)
 			{
-				console.log("BUILDING HIT")
+				//console.log("BUILDING HIT")
 				positionTemp = new THREE.Vector3(0,0,0).copy(missile_object.position)
 				disposeObject(missile_object)
-				disposeObject(buildingTemp)
-				missile.objects.splice(index,1)
-				buildings.objects.splice(index1,1)
+				buildingTemp.visible = false
+				missile.objects.splice(index,1)	
 				createExplosion("building",positionTemp)
+				endGame();
 				
 			}
 		})
+
+		//for deduction missile blaster hit
+		if (missile_object.position.distanceTo(meshes.missileBlaster.position) < 2)
+		{
+			//console.log("MISSILE BLASTER HIT")
+			positionTemp = new THREE.Vector3(0,0,0).copy(missile_object.position)
+			disposeObject(missile_object)
+			missile.objects.splice(index,1)
+			meshes.missileBlaster.visible = false
+			createExplosion("building",positionTemp)
+			endGame();
+			
+		}	
+
+
+
 
 	
 
@@ -508,7 +611,7 @@ function createExplosion(type,positionVal){
 		mesh.position.copy(positionVal)
 		if(type == 'building') mesh.position.y-=1 // to make it more aligned with ground
 		scene.add(mesh)
-		console.log("explosions : ",mesh)
+		//console.log("explosions : ",mesh)
 		mesh.justCreated = true
 		playSound(explosions.sound)
 		explosions.objects.push(mesh)
@@ -530,10 +633,6 @@ function animate(){
 	// Animate Missiles
 
 	collisionDeduction();
-	
-
-
-
 /*	mesh = missile.objects[missile.objects.length -1 ]
 	
 	if(keyboard[37])
@@ -553,12 +652,14 @@ function animate(){
 		mesh.position.x += 0.1
 	if(keyboard[68])
 		mesh.position.x -= 0.1*/
-	if(missile.fireInterval < 0)
+	if(missile.fireInterval < 0 && missile.isAlive)
 	{
 		missile.fireInterval = missile.fireInterval_default 
 		launchMissile();
 	}
+	if(missile.isAlive)
 	missile.fireInterval--; // for each frame
+
 	antiMissile.fireInterval--;
  	renderer.render(scene,camera)
 
@@ -583,13 +684,13 @@ window.addEventListener('keyup',function(){
 })
 
 window.addEventListener('mousemove',function(event){
-	console.log("Mouse Moves")
+	//console.log("Mouse Moves")
 	moveCrossHair(event)
 });
 
 
 window.addEventListener('mousedown',function(event){
-	console.log("mouse clicked")
+	//console.log("mouse clicked")
 	launchAntiMissiles(event);
 });
 

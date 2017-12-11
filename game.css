@@ -7,6 +7,18 @@
 	
 }
 
+#info {
+	position: absolute;
+	top: 20%;
+  	width: 100%;
+	text-align: center;
+	z-index: 100;
+	font-size: 80px;
+	color: white;
+	
+}
+
+
 table, th, td {
 	color: white;
 	font-size: 20px;

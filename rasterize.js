@@ -13,7 +13,8 @@ var missile = {
 	fireInterval_default : 100,
 	fireInterval : 100,
 	objects :[],
-	missileSlowRate : 500,
+	missileSlowRate : 500, // more the value , slower the game
+	missileLevelUp : 20
 };
 
 var antiMissile = {
@@ -21,12 +22,21 @@ var antiMissile = {
 	fireInterval : 10,
 	objects :[],
 	missileSlowRate : 20,
+	missileLevelUp : 2,
 	model :  new THREE.Mesh(
 		new THREE.SphereGeometry(0.1,32,32),
 		new THREE.MeshBasicMaterial({ color : 0xff0000,  wireframe: false})
 	)
 
 };
+
+var score = {
+	points : 0,
+	level : 1 , 
+	destroyedObjects : 0,
+	levelUp : 10,
+	pointsUp :5
+}
 
 var COLLISION_ACCURACY = 1;
 
@@ -66,10 +76,6 @@ function init(){
 	setCamera();
 	setCrossHair();
 	animate();
-	console.log(camera);
-	console.log(renderer.domElement)
-
-
 }
 
 
@@ -90,10 +96,14 @@ function setCrossHair(){
 	meshes.crossHair.position.y = 3;
 	meshes.crossHair.position.z = 1;
 	meshes.crossHair.rotation.x =  Math.PI ;
-
 	scene.add(meshes.crossHair)
 		
 	});
+
+}
+
+function levelUp(){
+	fireInterval_default = 1000
 
 }
 
@@ -213,6 +223,17 @@ function showGrid(){
 	scene.add(grid);
 }
 
+function updateScore(){
+	score.destroyedObjects++;
+	if (score.destroyedObjects % score.levelUp == 0)
+	{
+	 score.level++;
+	 levelUp();
+	}
+	score.points += (score.level * score.pointsUp)
+	$("#scoreDom").html(score.points)
+	$("#levelDom").html(score.level)
+}
 
 function addSound(){
 listener = new THREE.AudioListener();
@@ -446,6 +467,7 @@ function collisionDeduction(){
 				missile.objects.splice(index,1)
 				antiMissile.objects.splice(index1,1)
 				createExplosion("missile",positionTemp)
+				updateScore();
 			}
 		})
 		buildings.objects.forEach(function(buildingTemp,index1){
@@ -458,6 +480,7 @@ function collisionDeduction(){
 				missile.objects.splice(index,1)
 				buildings.objects.splice(index1,1)
 				createExplosion("building",positionTemp)
+				
 			}
 		})
 

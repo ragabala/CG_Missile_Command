@@ -23,7 +23,7 @@ var missile = {
     ),
     isAlive: false,
     cloneCheck: true, // allows missile to be cloned at random
-    splitProbability: 5 // means one in every 5 missiles will split - probability
+    splitProbability: 500 // means one in every 5 missiles will split - probability
 };
 
 var antiMissile = {
@@ -72,6 +72,18 @@ var explosions = {
 
 var mouse;
 
+var spaceShips = {
+    mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.5),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("textures/spaceship.jpg"), wireframe: false }),
+    ),
+    probability: 50,
+    currentObject: null,
+    spaceShipSlowRate: 500,
+    isAlive: true,
+    launch: Math.ceil(Math.random() * 9) // when to launch
+
+}
+
 
 var loadingScreen = {
     scene: new THREE.Scene(),
@@ -86,18 +98,21 @@ var RESOURCES_LOADED = false;
 
 
 function init() {
+    console.log("launch code ", spaceShips.launch)
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
     renderer = new THREE.WebGLRenderer(); // the renderer object dynamically creates the canvas element for rendering the scene, we include this in the HTML DOM element
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(window.innerWidth, window.innerHeight);
     $('body').append(renderer.domElement)
+    setLoader();
     startGame();
     addBackground();
     addSound();
     addBuildings();
+    //addSpaceShips();
     addMissileBlaster();
-    showGrid();
+    //showGrid();
     addFloor();
     setCamera();
     addCrossHair();
@@ -106,13 +121,32 @@ function init() {
 
 
 function startGame() {
-    $("#info").html("<u>click here to start</u>");
+    $("#info").html("Loading");
     $("#info").show();
+}
+
+function setLoader() {
+    loadingScreen.box.position.set(0, 0, 5);
+    loadingScreen.box.material.side = THREE.DoubleSide;
+    loadingScreen.box.rotation.x = Math.PI;
+    loadingScreen.camera.lookAt(loadingScreen.box.position);
+    loadingScreen.scene.add(loadingScreen.box);
+
+    loadingManager = new THREE.LoadingManager();
+    loadingManager.onProgress = function(item, loaded, total) {
+        console.log(item, loaded, total);
+    };
+    loadingManager.onLoad = function() {
+        console.log("loaded all resources");
+        RESOURCES_LOADED = true;
+        $("#info").html("<u>Click Here to START</u>");
+    };
+
 }
 
 function addBackground() {
     //adding a box
-    textureLoader = new THREE.TextureLoader()
+    textureLoader = new THREE.TextureLoader(loadingManager)
     textures.skyTexture = textureLoader.load("textures/sky1.jpg")
     meshes.sky = new THREE.Mesh(
         new THREE.PlaneGeometry(50, 20, 30, 30),
@@ -133,7 +167,7 @@ function addSound() {
     // create an Audio source
     // BGM 
     var sound = new THREE.Audio(listener);
-    var audioLoader = new THREE.AudioLoader();
+    var audioLoader = new THREE.AudioLoader(loadingManager);
     //Load a sound and set it as the Audio object's buffer
     audioLoader.load('Sounds/bgm.ogg', function(buffer) {
         sound.setBuffer(buffer);
@@ -145,7 +179,7 @@ function addSound() {
     // create an Audio source
     // AntiMissile 
     var sound1 = new THREE.Audio(listener);
-    var audioLoader1 = new THREE.AudioLoader();
+    var audioLoader1 = new THREE.AudioLoader(loadingManager);
     //Load a sound and set it as the Audio object's buffer
     audioLoader1.load('Sounds/missileLaunch.ogg', function(buffer) {
         sound1.setBuffer(buffer);
@@ -157,7 +191,7 @@ function addSound() {
     // create an Audio source
     // AntiMissile 
     var sound2 = new THREE.Audio(listener);
-    var audioLoader2 = new THREE.AudioLoader();
+    var audioLoader2 = new THREE.AudioLoader(loadingManager);
     //Load a sound and set it as the Audio object's buffer
     audioLoader2.load('Sounds/explosion.ogg', function(buffer) {
         sound2.setBuffer(buffer);
@@ -169,7 +203,7 @@ function addSound() {
     // create an Audio source
     // LevelUpSound 
     var sound3 = new THREE.Audio(listener);
-    var audioLoader3 = new THREE.AudioLoader();
+    var audioLoader3 = new THREE.AudioLoader(loadingManager);
     //Load a sound and set it as the Audio object's buffer
     audioLoader3.load('Sounds/levelUp.wav', function(buffer) {
         sound3.setBuffer(buffer);
@@ -205,7 +239,7 @@ function addBuildings() {
     var texturesArray = ["building_1.jpg", "building_2.jpg", "building_3.jpg", "building_4.jpg", "building_5.jpg", "building_6.jpg"];
     var counter = 0;
     positions.forEach(function(position) {
-        textureLoader = new THREE.TextureLoader()
+        textureLoader = new THREE.TextureLoader(loadingManager)
         textures.buildingTexture = textureLoader.load("textures/" + texturesArray[counter])
         counter = (counter + 1) % texturesArray.length // for changing the textures for each building
         mesh = buildings.model.clone()
@@ -219,9 +253,34 @@ function addBuildings() {
 
 }
 
+function addSpaceShips() {
+    var currentNumber = score.destroyedObjects % score.levelUp
+    if (spaceShips.isAlive && spaceShips.launch == currentNumber && spaceShips.currentObject==null) {
+        console.log("spaceship loaded")
+        spaceShips.isAlive = false
+        var traversal = {}
+        var dir = 1;
+        if (Math.random() > 0.5)
+            dir = -1
+
+        var y = 6 + (Math.random() * 3) // that is from 4 to 7
+        traversal.start = new THREE.Vector3(-13 * dir, y, 0) // from either side 
+        traversal.end = new THREE.Vector3(13 * dir, y, 0)
+        traversal.velocity = new THREE.Vector3(0, 0, 0).copy(traversal.end)
+        traversal.velocity.sub(traversal.start)
+        traversal.velocity.divideScalar(spaceShips.spaceShipSlowRate)
+
+        textureLoader = new THREE.TextureLoader(loadingManager)
+        meshes.spaceship = spaceShips.mesh.clone()
+        meshes.spaceship.traversal = traversal
+        meshes.spaceship.position.copy(traversal.start)
+        scene.add(meshes.spaceship)
+        spaceShips.currentObject = meshes.spaceship
+    }
+}
 
 function addMissileBlaster() {
-    textureLoader = new THREE.TextureLoader()
+    textureLoader = new THREE.TextureLoader(loadingManager)
     texture = textureLoader.load("textures/missile.jpg")
     var coneGeom = new THREE.ConeGeometry(0.75, 2, 10);
     coneGeom.translate(0, 1.3, 0);
@@ -236,7 +295,7 @@ function addMissileBlaster() {
 
 function addFloor() {
     //adding a plane floor
-    textureLoader = new THREE.TextureLoader()
+    textureLoader = new THREE.TextureLoader(loadingManager)
     texture = textureLoader.load("textures/floor.png")
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
@@ -254,7 +313,7 @@ function addFloor() {
 
 function addCrossHair() {
     mouse = new THREE.Vector2();
-    textureLoader = new THREE.TextureLoader();
+    textureLoader = new THREE.TextureLoader(loadingManager);
     texture = textureLoader.load("textures/crossHair.png")
     meshes.crossHair = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2, 2, 2),
@@ -339,6 +398,8 @@ function levelUp() {
     if (antiMissile.missileSlowRate > 5) // maximum speed
         antiMissile.missileSlowRate -= antiMissile.missileLevelUp
     missile.cloneCheck = true;
+    spaceShips.isAlive = true;
+    spaceShips.launch = Math.ceil(Math.random() * 9) // when to launch
 }
 
 
@@ -435,9 +496,9 @@ function cloneMissile(missileObject) {
 
 function setCloneMissile(missileObj) {
     var launchPosition = missileObj.position.y
-    if ((launchPosition >= 8.9 && launchPosition < 9)) {
+    if ((launchPosition >= 8.95 && launchPosition < 9)) {
         //console.log(launchPosition)
-        if (Math.ceil(Math.random() * missile.splitProbability) == missile.splitProbability && missileObj.isClone) // all missiles will split with probability of 1/5
+        if (Math.ceil(Math.random() * missile.splitProbability ) == missile.splitProbability && missileObj.isClone) // all missiles will split with probability of 1/5
         {
             //missile.cloneCheck = false;
             missileObj.isClone = false;
@@ -481,13 +542,19 @@ function showGrid() {
     scene.add(grid);
 }
 
-function updateScore() {
-    score.destroyedObjects++;
-    if (score.destroyedObjects % score.levelUp == 0) {
-        score.level++;
-        levelUp();
+function updateScore(type) {
+    if (type == 'missile') {
+        score.destroyedObjects++;
+        if (score.destroyedObjects % score.levelUp == 0) {
+            score.level++;
+            levelUp();
+        }
+        score.points += (score.level * score.pointsUp)
+    } else {
+        score.points += (score.level * score.pointsUp * 2)
     }
-    score.points += (score.level * score.pointsUp)
+
+
     $("#scoreDom").html(score.points)
     $("#levelDom").html(score.level)
 }
@@ -509,6 +576,7 @@ function disposeObject(object) {
 
 function animateMissiles() {
 
+    addSpaceShips();
     missile.objects.forEach(function(missile_object, index) {
         missile_object.position.add(missile_object.traversal.velocity)
         if (missile_object.spin == 0)
@@ -547,6 +615,13 @@ function animateMissiles() {
         }
     });
 
+    if (spaceShips.currentObject != null) {
+        spaceShips.currentObject.position.add(spaceShips.currentObject.traversal.velocity)
+        if (Math.abs(spaceShips.currentObject.position.x - spaceShips.currentObject.traversal.end.x) < 1) {
+            disposeObject(spaceShips.currentObject)
+            spaceShips.currentObject = null
+        }
+    }
 }
 
 
@@ -566,9 +641,15 @@ function collisionDeduction() {
                 missile.objects.splice(index, 1)
                 antiMissile.objects.splice(index1, 1)
                 createExplosion("missile", positionTemp)
-                updateScore();
+                updateScore("missile");
             }
+
+
         })
+
+
+
+
         buildings.objects.forEach(function(buildingTemp, index1) {
             if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY) {
                 //console.log("BUILDING HIT")
@@ -601,6 +682,23 @@ function collisionDeduction() {
 
     })
     // make missiles move by a frame after checking whether they collided
+
+
+    if (spaceShips.currentObject != null) {
+        antiMissile.objects.forEach(function(anti_missile_object, index1) {
+            if (spaceShips.currentObject.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY) {
+                positionTemp = new THREE.Vector3(0, 0, 0).copy(anti_missile_object.position)
+                disposeObject(anti_missile_object)
+                disposeObject(spaceShips.currentObject)
+                spaceShips.currentObject = null
+                antiMissile.objects.splice(index1, 1)
+                createExplosion("missile", positionTemp)
+                updateScore("spaceship");
+            }
+        })
+    }
+
+
     animateMissiles();
 
 
@@ -638,10 +736,16 @@ function getClone(object) {
 
 
 function animate() {
+    if (RESOURCES_LOADED == false) {
+        requestAnimationFrame(animate);
+        loadingScreen.box.position.x -= 0.05;
+        if (loadingScreen.box.position.x < -3) loadingScreen.box.position.x = 3;
+        renderer.render(loadingScreen.scene, loadingScreen.camera);
+        return;
+    }
+
+
     requestAnimationFrame(animate)
-
-    // Animate Missiles
-
     collisionDeduction();
     /*	mesh = missile.objects[missile.objects.length -1 ]
     	

@@ -144,7 +144,7 @@ function setLoader() {
 
     loadingManager = new THREE.LoadingManager();
     loadingManager.onProgress = function(item, loaded, total) {
-        console.log(item, loaded, total);
+        console.log("loading ",item," loaded : ", loaded," total : " total);
     };
     // will display the games start if its loaded
     loadingManager.onLoad = function() {
@@ -293,7 +293,7 @@ function addBuildings() {
 function addSpaceShips() {
     var currentNumber = score.destroyedObjects % score.levelUp
     if (spaceShips.isAlive && spaceShips.launch == currentNumber && spaceShips.currentObject == null) {
-        console.log("spaceship loaded")
+        //console.log("spaceship loaded")
         spaceShips.isAlive = false
         var traversal = {}
         var dir = 1;
@@ -521,7 +521,7 @@ function addMissile() {
 
 //for bifurcating the missiles 
 function cloneMissile(missileObject) {
-    console.log("cloned");
+    //console.log("cloned");
     var cloneMissile = missileObject.clone();
     var tempTraversal = getRandomMissileTraversal();
     tempTraversal.start = cloneMissile.position;
@@ -654,7 +654,7 @@ function animateMissiles() {
 
     // increase/reduce explosion size for each passing frames
     explosions.objects.forEach(function(explosion, index) {
-        console.log("current number of explosions :", explosions.objects.length)
+       // console.log("current number of explosions :", explosions.objects.length)
         if (explosion.scale.x < 0.3) {
             disposeObject(explosion)
             explosions.objects.splice(index, 1)
@@ -685,7 +685,7 @@ function collisionDeduction() {
     if (spaceShips.currentObject != null) {
         antiMissile.objects.forEach(function(anti_missile_object, index1) {
             if (spaceShips.currentObject.position.distanceTo(anti_missile_object.position) < 1.6) {
-                console.log("Space Ship :Number of Anti Missiles : " + antiMissile.objects.length)
+                //console.log("Space Ship :Number of Anti Missiles : " + antiMissile.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(spaceShips.currentObject.position)
                 disposeObject(anti_missile_object)
                 disposeObject(spaceShips.currentObject)
@@ -703,8 +703,8 @@ function collisionDeduction() {
     missile.objects.forEach(function(missile_object, index) {
         antiMissile.objects.forEach(function(anti_missile_object, index1) {
             if (missile_object.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY) {
-                console.log("Number of Missiles : " + missile.objects.length)
-                console.log("Number of Anti Missiles : " + antiMissile.objects.length)
+               // console.log("Number of Missiles : " + missile.objects.length)
+                // console.log("Number of Anti Missiles : " + antiMissile.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(missile_object.position)
                 //console.log(missile_object.position)
                 disposeObject(missile_object)
@@ -722,8 +722,8 @@ function collisionDeduction() {
         buildings.objects.forEach(function(buildingTemp, index1) {
             if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY) {
                 //console.log("BUILDING HIT")
-                console.log("Number of Missiles : " + missile.objects.length)
-                console.log("Number of Buildings : " + buildings.objects.length)
+               // console.log("Number of Missiles : " + missile.objects.length)
+                // console.log("Number of Buildings : " + buildings.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(buildingTemp.position)
                 disposeObject(missile_object)
                 buildingTemp.visible = false

@@ -10,6 +10,14 @@ var texture;
 var textures = {};
 var meshes = {};
 
+
+//just to say whether a new game is a restarted one or a new one
+var game = {
+    restart: false,
+    wireframe: false // set this to true to see the game in wireframe format 
+}
+
+// this is the object that contains the missile/meteorites that is shot towards earth
 var missile = {
     fireInterval_default: 100,
     fireInterval: 100,
@@ -18,14 +26,15 @@ var missile = {
     missileSlowRateDefault: 500,
     missileLevelUp: 50,
     model: new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 20, 20),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: false })
+        new THREE.SphereGeometry(0.3, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: game.wireframe })
     ),
     isAlive: false,
     cloneCheck: true, // allows missile to be cloned at random
-    splitProbability: 500 // means one in every 5 missiles will split - probability
+    splitProbability: 5 // means one in every 5 missiles will split - probability
 };
 
+// these are the ounter objects that will be shot against the incoming meteorites/spaceships
 var antiMissile = {
     fireInterval_default: 10,
     fireInterval: 10,
@@ -35,12 +44,13 @@ var antiMissile = {
     missileLevelUp: 2,
     model: new THREE.Mesh(
         new THREE.SphereGeometry(0.1, 10, 10),
-        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: false })
+        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: game.wireframe })
     ),
     isAlive: false
 
 };
 
+//contains the scoring for the game.Scores are shown as HTML DOM elements than three JS Texts
 var score = {
     points: 0,
     level: 1,
@@ -49,18 +59,18 @@ var score = {
     pointsUp: 5,
 }
 
-var game = {
-    restart: false,
-}
 
-var COLLISION_ACCURACY = 1;
+var COLLISION_ACCURACY = 1.5;
 
+//contains all the buildings for the game
 var buildings = {
     objects: [],
     model: new THREE.Mesh(
         new THREE.BoxGeometry(1, 1.6, 0.4)
     )
 }
+
+//to add cool explosions to the scene
 var explosions = {
     objects: [],
     model: new THREE.Mesh(
@@ -72,19 +82,20 @@ var explosions = {
 
 var mouse;
 
+// the random spaceships that appear out of the screen
 var spaceShips = {
     mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.5),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("textures/spaceship.jpg"), wireframe: false }),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("textures/spaceship.jpg"), wireframe: game.wireframe }),
     ),
     probability: 50,
     currentObject: null,
     spaceShipSlowRate: 500,
     isAlive: true,
-    launch: Math.ceil(Math.random() * 9) // when to launch
+    launch: Math.ceil(Math.random() * 9) // when to launch in a given level
 
 }
 
-
+// will give us a loading bar in the start till all textures are rendered
 var loadingScreen = {
     scene: new THREE.Scene(),
     camera: new THREE.PerspectiveCamera(90, innerWidth / innerHeight, 0.1, 100),
@@ -93,38 +104,41 @@ var loadingScreen = {
         new THREE.MeshBasicMaterial({ color: 0x4444ff })
     )
 };
+
+// contains a loading manager for ensuring all the resourses are loaded before starting the game
 var loadingManager = null;
 var RESOURCES_LOADED = false;
 
-
+// this is the all important initializer that stats with the window onload
 function init() {
-    console.log("launch code ", spaceShips.launch)
+  // three js requires three entities - scene, camera and renderer that are being used here
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
     renderer = new THREE.WebGLRenderer(); // the renderer object dynamically creates the canvas element for rendering the scene, we include this in the HTML DOM element
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(window.innerWidth, window.innerHeight);
     $('body').append(renderer.domElement)
+    // all the various preliminary setters are called here that gets invoked with loading manager to initialize in our loading screen
     setLoader();
     startGame();
     addBackground();
     addSound();
     addBuildings();
-    //addSpaceShips();
     addMissileBlaster();
-    //showGrid();
+    //showGrid(); // uncomment this to view grid lines in the project
     addFloor();
     setCamera();
     addCrossHair();
     animate();
 }
 
-
+// function that takes care of showing the loading that takes place initially
 function startGame() {
     $("#info").html("Loading");
     $("#info").show();
 }
 
+// the loader that is displayed in the start of the game
 function setLoader() {
     loadingScreen.box.position.set(0, 0, 5);
     loadingScreen.box.material.side = THREE.DoubleSide;
@@ -136,31 +150,33 @@ function setLoader() {
     loadingManager.onProgress = function(item, loaded, total) {
         console.log(item, loaded, total);
     };
+    // will display the games start if its loaded
     loadingManager.onLoad = function() {
         console.log("loaded all resources");
         RESOURCES_LOADED = true;
-        $("#info").html("<u>Click Here to START</u>");
+        $("#info").html("<B>ARMAGEDDON</B><br/><u>Click Here to START</u>");
     };
 
 }
 
+//sets a 2D background for the whole game using three js plane geometry
 function addBackground() {
     //adding a box
     textureLoader = new THREE.TextureLoader(loadingManager)
     textures.skyTexture = textureLoader.load("textures/sky1.jpg")
     meshes.sky = new THREE.Mesh(
         new THREE.PlaneGeometry(50, 20, 30, 30),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.skyTexture, wireframe: false })
+        new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.skyTexture, wireframe: game.wireframe })
     )
     meshes.sky.material.side = THREE.DoubleSide;
     meshes.sky.position.z = -5;
     meshes.sky.position.y = 9;
     meshes.sky.rotation.z = Math.PI;
     meshes.sky.rotation.x = -Math.PI;
-    scene.add(meshes.sky)
+    scene.add(meshes.sky) // adds a particular model to the scene
 }
 
-
+// this preloads all the sounds with the help of load manager which will be ready to play during the game
 function addSound() {
     listener = new THREE.AudioListener();
     camera.add(listener);
@@ -176,7 +192,6 @@ function addSound() {
         sound.play();
     });
 
-    // create an Audio source
     // AntiMissile 
     var sound1 = new THREE.Audio(listener);
     var audioLoader1 = new THREE.AudioLoader(loadingManager);
@@ -188,7 +203,6 @@ function addSound() {
 
     antiMissile.sound = sound1;
 
-    // create an Audio source
     // AntiMissile 
     var sound2 = new THREE.Audio(listener);
     var audioLoader2 = new THREE.AudioLoader(loadingManager);
@@ -200,7 +214,7 @@ function addSound() {
 
     explosions.sound = sound2;
 
-    // create an Audio source
+
     // LevelUpSound 
     var sound3 = new THREE.Audio(listener);
     var audioLoader3 = new THREE.AudioLoader(loadingManager);
@@ -212,9 +226,11 @@ function addSound() {
 
     score.sound = sound3;
 
+// totally four different sounds for four different purposes are used in this game
 }
 
 
+// all the building locations are predefined and the building textures are loaded in order so no neighbouring houses looks exactly the same
 function addBuildings() {
 
     var positions = [
@@ -236,6 +252,7 @@ function addBuildings() {
         [4, -1],
         [6, -1]
     ]; // x and y positions
+    // all the textures are saves here in thie array
     var texturesArray = ["building_1.jpg", "building_2.jpg", "building_3.jpg", "building_4.jpg", "building_5.jpg", "building_6.jpg"];
     var counter = 0;
     positions.forEach(function(position) {
@@ -243,7 +260,7 @@ function addBuildings() {
         textures.buildingTexture = textureLoader.load("textures/" + texturesArray[counter])
         counter = (counter + 1) % texturesArray.length // for changing the textures for each building
         mesh = buildings.model.clone()
-        mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.buildingTexture, wireframe: false });
+        mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.buildingTexture, wireframe: game.wireframe });
         mesh.position.x = position[0];
         mesh.position.z = position[1];
         mesh.position.y = 1;
@@ -253,6 +270,7 @@ function addBuildings() {
 
 }
 
+// the spaceship is already created at the start. Whenever this function is called that object is cloned with different directions
 function addSpaceShips() {
     var currentNumber = score.destroyedObjects % score.levelUp
     if (spaceShips.isAlive && spaceShips.launch == currentNumber && spaceShips.currentObject==null) {
@@ -263,7 +281,7 @@ function addSpaceShips() {
         if (Math.random() > 0.5)
             dir = -1
 
-        var y = 6 + (Math.random() * 3) // that is from 4 to 7
+        var y = 6 + (Math.random() * 3) // that is from 6 to 9 - the location of spaceships is random
         traversal.start = new THREE.Vector3(-13 * dir, y, 0) // from either side 
         traversal.end = new THREE.Vector3(13 * dir, y, 0)
         traversal.velocity = new THREE.Vector3(0, 0, 0).copy(traversal.end)
@@ -279,20 +297,21 @@ function addSpaceShips() {
     }
 }
 
+// this produces our antiballistic missile to destroy the incoming missiles
 function addMissileBlaster() {
     textureLoader = new THREE.TextureLoader(loadingManager)
     texture = textureLoader.load("textures/missile.jpg")
     var coneGeom = new THREE.ConeGeometry(0.75, 2, 10);
     coneGeom.translate(0, 1.3, 0);
     coneGeom.rotateX(Math.PI / 2);
-    var coneMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture, wireframe: false })
+    var coneMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture, wireframe: game.wireframe })
     meshes.missileBlaster = new THREE.Mesh(coneGeom, coneMat);
     meshes.missileBlaster.lookAt(new THREE.Vector3(0, 1, 0));
     scene.add(meshes.missileBlaster)
 }
 
 
-
+// again a 2D plane geometry object containing the texture of the floor.
 function addFloor() {
     //adding a plane floor
     textureLoader = new THREE.TextureLoader(loadingManager)
@@ -303,21 +322,21 @@ function addFloor() {
     texture.repeat.set(10, 10);
     floor = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 7, 10, 10),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture, wireframe: false })
+        new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture, wireframe: game.wireframe })
     );
     floor.rotation.x = Math.PI / 2; // to make the floor in the xz plane
     floor.material.side = THREE.DoubleSide;
     scene.add(floor)
 }
 
-
+//this is used for positioning the mouse so that aim can be taken
 function addCrossHair() {
     mouse = new THREE.Vector2();
     textureLoader = new THREE.TextureLoader(loadingManager);
     texture = textureLoader.load("textures/crossHair.png")
     meshes.crossHair = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2, 2, 2),
-        new THREE.MeshBasicMaterial({ map: texture, transparent: true, wireframe: false })
+        new THREE.MeshBasicMaterial({ map: texture, transparent: true, wireframe: game.wireframe })
     )
     meshes.crossHair.material.side = THREE.DoubleSide;
     meshes.crossHair.position.y = 3;
@@ -326,7 +345,7 @@ function addCrossHair() {
     scene.add(meshes.crossHair)
 }
 
-
+//sets our camera in perspective mode and also at some height so the game play looks real
 function setCamera() {
     // setting the camera away from the origin and at the height of the player
     // these values are useful in setting missile positions to FOV
@@ -334,6 +353,7 @@ function setCamera() {
     camera.lookAt(new THREE.Vector3(0, 3.8, 0))
 }
 
+// this is for restarting a game, which makes the missiles to appear 
 $("#info").click(function(event) {
     $("#info").hide();
     missile.isAlive = true
@@ -343,6 +363,7 @@ $("#info").click(function(event) {
 
 })
 
+// this puts back all destroyed obects after game restarts
 function assembleDestroyed() {
     //console.log("assembleDestroyed")
     buildings.objects.forEach(function(building, index) {
@@ -351,6 +372,7 @@ function assembleDestroyed() {
     meshes.missileBlaster.visible = true
 }
 
+// this displays the scores achieved by the user with option to restart the game if he wants
 function endGame() {
 
     missile.objects.forEach(function(missile, index) {
@@ -369,6 +391,7 @@ function endGame() {
 
 }
 
+// set scores and level to default after game over for the new game
 function resetGameValues() {
     score.points = 0
     score.level = 1
@@ -381,12 +404,13 @@ function resetGameValues() {
 
 }
 
+// util function for degree to radian
 function deg2Rad(value) {
     return value * Math.PI / 180
 }
 
 
-
+// when ever a level goes up , we animate the level change 
 function levelUp() {
     playSound(score.sound);
     $("#levelDom").css("color", "red")
@@ -397,13 +421,13 @@ function levelUp() {
         missile.missileSlowRate -= missile.missileLevelUp
     if (antiMissile.missileSlowRate > 5) // maximum speed
         antiMissile.missileSlowRate -= antiMissile.missileLevelUp
-    missile.cloneCheck = true;
-    spaceShips.isAlive = true;
+    missile.cloneCheck = true; // to allow missiles to be cloned
+    spaceShips.isAlive = true; // to allow space ships to appear
     spaceShips.launch = Math.ceil(Math.random() * 9) // when to launch
 }
 
 
-
+// this function generates the game coordinates from screen coordinates from a mouse event
 function getScreenPositionForMouseEvent(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -415,7 +439,7 @@ function getScreenPositionForMouseEvent(event) {
     return camera.position.clone().add(dir.multiplyScalar(distance))
 }
 
-
+// to change the cross hair based on the mouse pointer
 function moveCrossHair(event) {
 
     var pos = getScreenPositionForMouseEvent(event)
@@ -427,6 +451,7 @@ function moveCrossHair(event) {
     //making missile blaster look at cross hair
 }
 
+// this generates an object that takes care of generating a random path for an incoming missile
 function getRandomMissileTraversal() {
 
     /* since we will be shooting only at z = 0 
@@ -457,14 +482,14 @@ function getRandomMissileTraversal() {
 
 
 
-
+// used for adding missiles in the gameplay
 function addMissile() {
     //creating a new missile
     textureLoader = new THREE.TextureLoader();
     var textureRand = Math.floor(Math.random() * 10); // for different rocks
     mesh = missile.model.clone();
     textures.missileTexture = textureLoader.load("textures/rocks/rock" + textureRand + ".jpg");
-    mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.missileTexture, wireframe: false })
+    mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, map: textures.missileTexture, wireframe: game.wireframe })
     mesh.traversal = getRandomMissileTraversal();
     var positionTemp = mesh.traversal.start
     mesh.position.set(positionTemp.x, positionTemp.y, positionTemp.z)
@@ -475,6 +500,7 @@ function addMissile() {
     return mesh;
 }
 
+//for bifurcating the missiles 
 function cloneMissile(missileObject) {
     console.log("cloned");
     var cloneMissile = missileObject.clone();
@@ -494,6 +520,7 @@ function cloneMissile(missileObject) {
 
 }
 
+// this is called all the time a missile crosses a particular position and clones a missile depending upon a probability
 function setCloneMissile(missileObj) {
     var launchPosition = missileObj.position.y
     if ((launchPosition >= 8.95 && launchPosition < 9)) {
@@ -510,6 +537,7 @@ function setCloneMissile(missileObj) {
 
 }
 
+// when user clicks, an anti missile is generated from the missile blaster position and it moves toward the click
 function launchAntiMissiles(event) {
     if (antiMissile.fireInterval >= 0 || !antiMissile.isAlive) return; // 
     antiMissile.fireInterval = 24; //resetting back
@@ -520,7 +548,7 @@ function launchAntiMissiles(event) {
 
 }
 
-
+// this creates and anti ballistic missile at missile launcher position
 function addAntiMissile(destination) {
 
     var currentMissile = antiMissile.model.clone();
@@ -535,13 +563,14 @@ function addAntiMissile(destination) {
     scene.add(currentMissile)
     antiMissile.objects.push(currentMissile)
 }
-
+// to show grid in the game
 function showGrid() {
     var grid = new THREE.GridHelper(22, 22, "white", "white");
     grid.rotation.x = Math.PI / 2;
     scene.add(grid);
 }
 
+// changes the score on collision
 function updateScore(type) {
     if (type == 'missile') {
         score.destroyedObjects++;
@@ -566,6 +595,7 @@ function playSound(sound) {
     sound.play()
 }
 
+//util to remove objects of screen
 function disposeObject(object) {
 
     object.material.dispose();
@@ -574,6 +604,7 @@ function disposeObject(object) {
 
 }
 
+// runs in a loop animating each and every missile,antimissile,spaceships and explosions
 function animateMissiles() {
 
     addSpaceShips();
@@ -596,14 +627,15 @@ function animateMissiles() {
 
     antiMissile.objects.forEach(function(missile_object, index) {
         missile_object.position.add(missile_object.traversal.velocity)
-        if (missile_object.position.distanceTo(missile_object.traversal.end) < 0.2) {
+        if (Math.abs(missile_object.position.x-13) < 0.5 || Math.abs(missile_object.position.y-13) < 0.5) {
             disposeObject(missile_object)
             antiMissile.objects.splice(index, 1)
         }
     }); //end of foreach antimissile
 
-    // reduce explosion size for each passing frames
+    // increase/reduce explosion size for each passing frames
     explosions.objects.forEach(function(explosion, index) {
+        console.log("current number of explosions :",explosions.objects.length)
         if (explosion.scale.x < 0.3) {
             disposeObject(explosion)
             explosions.objects.splice(index, 1)
@@ -624,8 +656,25 @@ function animateMissiles() {
     }
 }
 
-
+//used for deducting collision between missile and anitmissile / animissile and spaceships / missile and buildings/missile blaster
+//this is also called in a loop
 function collisionDeduction() {
+
+
+    if (spaceShips.currentObject != null) {
+        antiMissile.objects.forEach(function(anti_missile_object, index1) {
+            if (spaceShips.currentObject.position.distanceTo(anti_missile_object.position) < 2) {
+                console.log("Space Ship :Number of Anti Missiles : "+ antiMissile.objects.length)
+                positionTemp = new THREE.Vector3(0, 0, 0).copy(spaceShips.currentObject.position)
+                disposeObject(anti_missile_object)
+                disposeObject(spaceShips.currentObject)
+                spaceShips.currentObject = null
+                antiMissile.objects.splice(index1, 1)
+                createExplosion("missile", positionTemp)
+                updateScore("spaceship");
+            }
+        })
+    }
 
 
     var positionTemp;
@@ -633,7 +682,8 @@ function collisionDeduction() {
     missile.objects.forEach(function(missile_object, index) {
         antiMissile.objects.forEach(function(anti_missile_object, index1) {
             if (missile_object.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY) {
-                //console.log("Missile HIT")
+                console.log("Number of Missiles : "+ missile.objects.length)
+                console.log("Number of Anti Missiles : "+ antiMissile.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(missile_object.position)
                 //console.log(missile_object.position)
                 disposeObject(missile_object)
@@ -648,12 +698,12 @@ function collisionDeduction() {
         })
 
 
-
-
         buildings.objects.forEach(function(buildingTemp, index1) {
-            if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY) {
+            if (missile_object.position.distanceTo(buildingTemp.position) < 1) {
                 //console.log("BUILDING HIT")
-                positionTemp = new THREE.Vector3(0, 0, 0).copy(missile_object.position)
+                console.log("Number of Missiles : "+ missile.objects.length)
+                console.log("Number of Buildings : "+ buildings.objects.length)
+                positionTemp = new THREE.Vector3(0, 0, 0).copy(buildingTemp.position)
                 disposeObject(missile_object)
                 buildingTemp.visible = false
                 missile.objects.splice(index, 1)
@@ -666,7 +716,7 @@ function collisionDeduction() {
         //for deduction missile blaster hit
         if (missile_object.position.distanceTo(meshes.missileBlaster.position) < 2) {
             //console.log("MISSILE BLASTER HIT")
-            positionTemp = new THREE.Vector3(0, 0, 0).copy(missile_object.position)
+            positionTemp = new THREE.Vector3(0, 0, 0).copy(meshes.missileBlaster.position)
             disposeObject(missile_object)
             missile.objects.splice(index, 1)
             meshes.missileBlaster.visible = false
@@ -684,19 +734,6 @@ function collisionDeduction() {
     // make missiles move by a frame after checking whether they collided
 
 
-    if (spaceShips.currentObject != null) {
-        antiMissile.objects.forEach(function(anti_missile_object, index1) {
-            if (spaceShips.currentObject.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY) {
-                positionTemp = new THREE.Vector3(0, 0, 0).copy(anti_missile_object.position)
-                disposeObject(anti_missile_object)
-                disposeObject(spaceShips.currentObject)
-                spaceShips.currentObject = null
-                antiMissile.objects.splice(index1, 1)
-                createExplosion("missile", positionTemp)
-                updateScore("spaceship");
-            }
-        })
-    }
 
 
     animateMissiles();
@@ -715,7 +752,7 @@ function createExplosion(type, positionVal) {
     textureLoader = new THREE.TextureLoader();
     textures.explosion = textureLoader.load(texture, function(texture) {
         mesh = explosions.model.clone();
-        mesh.material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, wireframe: false, side: THREE.DoubleSide });
+        mesh.material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, wireframe: game.wireframe, side: THREE.DoubleSide });
         mesh.position.copy(positionVal)
         if (type == 'building') mesh.position.y -= 1 // to make it more aligned with ground
         scene.add(mesh)
@@ -734,7 +771,7 @@ function getClone(object) {
     return JSON.parse(JSON.stringify(object));
 }
 
-
+//animates the game for each frame
 function animate() {
     if (RESOURCES_LOADED == false) {
         requestAnimationFrame(animate);
@@ -747,26 +784,7 @@ function animate() {
 
     requestAnimationFrame(animate)
     collisionDeduction();
-    /*	mesh = missile.objects[missile.objects.length -1 ]
-    	
-    	if(keyboard[37])
-    	mesh.rotation.y += 0.01
-    	if(keyboard[39])
-    	mesh.rotation.y -= 0.01
-    	if(keyboard[38])
-    	mesh.rotation.x += 0.01
-    	if(keyboard[40])
-    	mesh.rotation.x -= 0.01
-
-    	if(keyboard[87])
-    	mesh.position.y += 0.1
-    	if(keyboard[83])
-    		mesh.position.y -= 0.1
-    	if(keyboard[65])
-    		mesh.position.x += 0.1
-    	if(keyboard[68])
-    		mesh.position.x -= 0.1*/
-    if (missile.fireInterval < 0 && missile.isAlive) {
+     if (missile.fireInterval < 0 && missile.isAlive) {
         missile.fireInterval = missile.fireInterval_default
         addMissile();
     }
@@ -779,30 +797,15 @@ function animate() {
 
 }
 
-
-
-
-
-var plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-var raycaster = new THREE.Raycaster();
 var mouse = new THREE.Vector2();
-var intersectPoint = new THREE.Vector3();
 
-
-window.addEventListener('keydown', function() {
-    keyboard[event.keyCode] = true
-})
-
-window.addEventListener('keyup', function() {
-    keyboard[event.keyCode] = false
-})
-
+//for moving our cross hair
 window.addEventListener('mousemove', function(event) {
     //console.log("Mouse Moves")
     moveCrossHair(event)
 });
 
-
+//for launching anti missile
 window.addEventListener('mousedown', function(event) {
     //console.log("mouse clicked")
     launchAntiMissiles(event);

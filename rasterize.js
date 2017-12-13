@@ -60,7 +60,7 @@ var score = {
 }
 
 
-var COLLISION_ACCURACY = 1.5;
+var COLLISION_ACCURACY = 1;
 
 //contains all the buildings for the game
 var buildings = {
@@ -111,7 +111,7 @@ var RESOURCES_LOADED = false;
 
 // this is the all important initializer that stats with the window onload
 function init() {
-  // three js requires three entities - scene, camera and renderer that are being used here
+    // three js requires three entities - scene, camera and renderer that are being used here
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
     renderer = new THREE.WebGLRenderer(); // the renderer object dynamically creates the canvas element for rendering the scene, we include this in the HTML DOM element
@@ -162,18 +162,18 @@ function startGame() {
 }
 
 //we will preload all the remaining textures that are used in explosions and in missiles for later use
-function loadTextures(){
-     textureLoader = new THREE.TextureLoader(loadingManager)
-     //loading all missile textures
-     for (var i = 0; i <=9; i++) {
-          textureLoader.load("textures/rocks/rock"+i+".jpg")
-     };
-      //loading all explosion textures
-     for (var i = 1; i <=3; i++) {
-           textureLoader.load("textures/explosions/explosion"+i+".png")
-     };
-     textureLoader.load("textures/explosions/building_explosion.png")
-     textureLoader.load("textures/spaceship.jpg")
+function loadTextures() {
+    textureLoader = new THREE.TextureLoader(loadingManager)
+    //loading all missile textures
+    for (var i = 0; i <= 9; i++) {
+        textureLoader.load("textures/rocks/rock" + i + ".jpg")
+    };
+    //loading all explosion textures
+    for (var i = 1; i <= 3; i++) {
+        textureLoader.load("textures/explosions/explosion" + i + ".png")
+    };
+    textureLoader.load("textures/explosions/building_explosion.png")
+    textureLoader.load("textures/spaceship.jpg")
 
 }
 
@@ -245,7 +245,7 @@ function addSound() {
 
     score.sound = sound3;
 
-// totally four different sounds for four different purposes are used in this game
+    // totally four different sounds for four different purposes are used in this game
 }
 
 
@@ -292,7 +292,7 @@ function addBuildings() {
 // the spaceship is already created at the start. Whenever this function is called that object is cloned with different directions
 function addSpaceShips() {
     var currentNumber = score.destroyedObjects % score.levelUp
-    if (spaceShips.isAlive && spaceShips.launch == currentNumber && spaceShips.currentObject==null) {
+    if (spaceShips.isAlive && spaceShips.launch == currentNumber && spaceShips.currentObject == null) {
         console.log("spaceship loaded")
         spaceShips.isAlive = false
         var traversal = {}
@@ -544,7 +544,7 @@ function setCloneMissile(missileObj) {
     var launchPosition = missileObj.position.y
     if ((launchPosition >= 8.95 && launchPosition < 9)) {
         //console.log(launchPosition)
-        if (Math.ceil(Math.random() * missile.splitProbability ) == missile.splitProbability && missileObj.isClone) // all missiles will split with probability of 1/5
+        if (Math.ceil(Math.random() * missile.splitProbability) == missile.splitProbability && missileObj.isClone) // all missiles will split with probability of 1/5
         {
             //missile.cloneCheck = false;
             missileObj.isClone = false;
@@ -646,7 +646,7 @@ function animateMissiles() {
 
     antiMissile.objects.forEach(function(missile_object, index) {
         missile_object.position.add(missile_object.traversal.velocity)
-        if (Math.abs(missile_object.position.x-13) < 0.5 || Math.abs(missile_object.position.y-13) < 0.5) {
+        if (Math.abs(missile_object.position.x - 13) < 0.5 || Math.abs(missile_object.position.y - 13) < 0.5) {
             disposeObject(missile_object)
             antiMissile.objects.splice(index, 1)
         }
@@ -654,7 +654,7 @@ function animateMissiles() {
 
     // increase/reduce explosion size for each passing frames
     explosions.objects.forEach(function(explosion, index) {
-        console.log("current number of explosions :",explosions.objects.length)
+        console.log("current number of explosions :", explosions.objects.length)
         if (explosion.scale.x < 0.3) {
             disposeObject(explosion)
             explosions.objects.splice(index, 1)
@@ -679,11 +679,13 @@ function animateMissiles() {
 //this is also called in a loop
 function collisionDeduction() {
 
+    var positionTemp;
 
+    // between anti missile and spaceship
     if (spaceShips.currentObject != null) {
         antiMissile.objects.forEach(function(anti_missile_object, index1) {
-            if (spaceShips.currentObject.position.distanceTo(anti_missile_object.position) < 2) {
-                console.log("Space Ship :Number of Anti Missiles : "+ antiMissile.objects.length)
+            if (spaceShips.currentObject.position.distanceTo(anti_missile_object.position) < 1.6) {
+                console.log("Space Ship :Number of Anti Missiles : " + antiMissile.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(spaceShips.currentObject.position)
                 disposeObject(anti_missile_object)
                 disposeObject(spaceShips.currentObject)
@@ -696,13 +698,13 @@ function collisionDeduction() {
     }
 
 
-    var positionTemp;
 
+    // between anti missile and missile
     missile.objects.forEach(function(missile_object, index) {
         antiMissile.objects.forEach(function(anti_missile_object, index1) {
             if (missile_object.position.distanceTo(anti_missile_object.position) < COLLISION_ACCURACY) {
-                console.log("Number of Missiles : "+ missile.objects.length)
-                console.log("Number of Anti Missiles : "+ antiMissile.objects.length)
+                console.log("Number of Missiles : " + missile.objects.length)
+                console.log("Number of Anti Missiles : " + antiMissile.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(missile_object.position)
                 //console.log(missile_object.position)
                 disposeObject(missile_object)
@@ -716,12 +718,12 @@ function collisionDeduction() {
 
         })
 
-
+        //between buildings and missile
         buildings.objects.forEach(function(buildingTemp, index1) {
-            if (missile_object.position.distanceTo(buildingTemp.position) < 1) {
+            if (missile_object.position.distanceTo(buildingTemp.position) < COLLISION_ACCURACY) {
                 //console.log("BUILDING HIT")
-                console.log("Number of Missiles : "+ missile.objects.length)
-                console.log("Number of Buildings : "+ buildings.objects.length)
+                console.log("Number of Missiles : " + missile.objects.length)
+                console.log("Number of Buildings : " + buildings.objects.length)
                 positionTemp = new THREE.Vector3(0, 0, 0).copy(buildingTemp.position)
                 disposeObject(missile_object)
                 buildingTemp.visible = false
@@ -744,16 +746,8 @@ function collisionDeduction() {
 
         }
 
-
-
-
-
-
     })
     // make missiles move by a frame after checking whether they collided
-
-
-
 
     animateMissiles();
 
@@ -800,10 +794,9 @@ function animate() {
         return;
     }
 
-
     requestAnimationFrame(animate)
     collisionDeduction();
-     if (missile.fireInterval < 0 && missile.isAlive) {
+    if (missile.fireInterval < 0 && missile.isAlive) {
         missile.fireInterval = missile.fireInterval_default
         addMissile();
     }

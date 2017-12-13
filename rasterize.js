@@ -121,6 +121,7 @@ function init() {
     // all the various preliminary setters are called here that gets invoked with loading manager to initialize in our loading screen
     setLoader();
     startGame();
+    loadTextures();
     addBackground();
     addSound();
     addBuildings();
@@ -132,11 +133,6 @@ function init() {
     animate();
 }
 
-// function that takes care of showing the loading that takes place initially
-function startGame() {
-    $("#info").html("Loading");
-    $("#info").show();
-}
 
 // the loader that is displayed in the start of the game
 function setLoader() {
@@ -158,6 +154,29 @@ function setLoader() {
     };
 
 }
+
+// function that takes care of showing the loading that takes place initially
+function startGame() {
+    $("#info").html("Loading");
+    $("#info").show();
+}
+
+//we will preload all the remaining textures that are used in explosions and in missiles for later use
+function loadTextures(){
+     textureLoader = new THREE.TextureLoader(loadingManager)
+     //loading all missile textures
+     for (var i = 0; i <=9; i++) {
+          textureLoader.load("textures/rocks/rock"+i+".jpg")
+     };
+      //loading all explosion textures
+     for (var i = 1; i <=3; i++) {
+           textureLoader.load("textures/explosions/explosion"+i+".png")
+     };
+     textureLoader.load("textures/explosions/building_explosion.png")
+     textureLoader.load("textures/spaceship.jpg")
+
+}
+
 
 //sets a 2D background for the whole game using three js plane geometry
 function addBackground() {

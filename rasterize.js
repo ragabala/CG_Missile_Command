@@ -144,7 +144,7 @@ function setLoader() {
 
     loadingManager = new THREE.LoadingManager();
     loadingManager.onProgress = function(item, loaded, total) {
-        console.log("loading ",item," loaded : ", loaded," total : " total);
+        console.log("loading ",item," loaded : ", loaded," total : ", total);
     };
     // will display the games start if its loaded
     loadingManager.onLoad = function() {

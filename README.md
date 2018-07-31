@@ -2,7 +2,7 @@ Heyy Fellas!!!
 
 Check out my latest game created using WebGL ThreeJs
 
-The game can be played in https://ragabala.github.io/CG_Missile_Command/
+The game can be played in https://ragabala.github.io/CG_Missile_Command/display.html
 
 *If you want to play locally*
 
